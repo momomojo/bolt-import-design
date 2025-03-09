@@ -1,0 +1,58 @@
+---
+description: This is the projoct's tech stack
+globs: 
+alwaysApply: false
+---
+
+# Technical stack
+
+Here is the **full tech stack** for the **Lawn Refresh** SaaS MVP:
+
+---
+
+### **Frontend (Mobile App)**
+- **Framework**: [React Native (Expo)](https://expo.dev/) – Managed workflow for building cross-platform (iOS & Android) applications.
+- **UI Components**: [NativeBase](https://nativebase.io/) – Prebuilt UI components designed for React Native apps.
+- **State Management**: [Zustand](https://github.com/pmndrs/zustand) – Lightweight and simple state management for global store.
+- **Navigation**: [React Navigation](https://reactnavigation.org/) – Handles in-app navigation (stack/tab navigation).
+- **Forms & Validation**: [React Hook Form](https://react-hook-form.com/) + [Yup](https://github.com/jquense/yup) – Efficient form handling and validation.
+- **Push Notifications**: [Expo Notifications](https://docs.expo.dev/push-notifications/overview/) – Unified push notification API for iOS and Android.
+- **Google Maps**: [React Native Maps](https://github.com/react-native-maps/react-native-maps) – Map views for location-based features.
+- **Environment Variables**: [Expo Config (app.json / app.config.js)](https://docs.expo.dev/workflow/configuration/) – Manages API keys securely.
+
+---
+
+### **Backend (Database, Authentication, APIs)**
+- **Backend as a Service (BaaS)**: [Supabase](https://supabase.com/) – Provides PostgreSQL database, authentication, storage, and real-time updates.
+- **Database**: [PostgreSQL](https://www.postgresql.org/) (via Supabase) – Scalable relational database.
+    - SQL database, Never JSON file storage.
+    - Seperate databases for dev, test, and prod.
+- **Authentication**: [Supabase Auth](https://supabase.com/docs/guides/auth) – Handles user authentication (email/password, social login if extended).
+- **Storage**: [Supabase Storage](https://supabase.com/docs/guides/storage) – For storing user-uploaded images.
+- **Functions & API Endpoints**: [Supabase Edge Functions](https://supabase.com/docs/guides/functions) – Serverless API functions to handle logic like Stripe payments and notifications.
+
+---
+
+### **Payments & Monetization**
+- **Payments Processor**: [Stripe](https://stripe.com/docs/payments) – Handles transactions, subscriptions, and payout to service providers.
+- **React Native SDK**: [Stripe React Native](https://github.com/stripe/stripe-react-native) – Integrates payments directly into the app.
+- **Test/Live Switching**: Stripe Test Mode enabled initially, with easy switch to Live Mode.
+
+---
+
+### **Infrastructure & Deployment**
+- **CI/CD**: [Expo EAS Build](https://expo.dev/eas) – Builds and deploys iOS & Android binaries.
+- **Cloud Functions**: [Supabase Edge Functions](https://supabase.com/docs/guides/functions) – Custom backend logic for notifications, booking management, etc.
+- **Environment Management**: [Expo Secrets & EAS Config](https://docs.expo.dev/build-reference/variables/) – Securely stores API keys and sensitive data.
+- **App Store Deployment**: 
+  - **Google Play Store** (via [EAS Submit](https://docs.expo.dev/submit/introduction/))
+  - **Apple App Store** (requires [Apple Developer account](https://developer.apple.com/))
+  
+---
+
+### **Development Tools**
+- **Package Manager**: [npm](https://www.npmjs.com/) (or `yarn` as alternative).
+- **Debugging**: [Expo DevTools](https://docs.expo.dev/workflow/expo-cli/) – Built-in debugging tools.
+
+---
+
