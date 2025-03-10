@@ -1,12 +1,12 @@
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { NativeBaseProvider } from './src/providers/NativeBaseProvider';
+import { AppProvider } from './src/providers/AppProvider';
 
 export default function App() {
   return (
-    <NativeBaseProvider>
+    <AppProvider>
       <StatusBar style="auto" />
       {/* Your app components will go here */}
-    </NativeBaseProvider>
+    </AppProvider>
   );
 }

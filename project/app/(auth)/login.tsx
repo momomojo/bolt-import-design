@@ -1,29 +1,164 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, Image } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  Pressable,
+  Image,
+  Platform,
+  ActivityIndicator,
+  Alert,
+  Switch,
+} from 'react-native';
 import { Link, router } from 'expo-router';
 import { Mail, Lock, ArrowRight } from 'lucide-react-native';
+import authService from '../../src/api/auth';
+import { supabase } from '../../src/api/supabase';
+import { useAuthDebug } from '../../src/hooks/auth/useAuthDebug';
 
 export default function Login() {
+  const authDebug = useAuthDebug();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [debugMode, setDebugMode] = useState(__DEV__); // Enable in development by default
 
-  const handleLogin = () => {
+  // Debug functions
+  const runDebugChecks = async () => {
+    setLoading(true);
+    try {
+      console.log('Running debug checks...');
+
+      // Check for existing session
+      await authDebug.checkSession();
+
+      // Test database permissions
+      await authDebug.testDatabasePermissions();
+
+      console.log('Debug checks completed');
+      Alert.alert(
+        'Debug Checks',
+        'Debug checks completed. Check console logs for details.'
+      );
+    } catch (error: any) {
+      console.error('Debug checks error:', error);
+      Alert.alert(
+        'Debug Error',
+        error.message || 'An error occurred during debugging'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = async () => {
     setError('');
-    
+
     if (!email || !password) {
       setError('Please fill in all fields');
       return;
     }
 
-    // TODO: Implement actual login logic
-    console.log('Login:', { email, password });
+    setLoading(true);
+    try {
+      console.log('Attempting login with email:', email);
+
+      // Try using auth service first
+      try {
+        const response = await authService.signIn(email, password);
+
+        if (response.error) {
+          throw response.error;
+        }
+
+        console.log(
+          'Login successful with auth service:',
+          response.data ? 'Session exists' : 'No session'
+        );
+
+        // Navigate to appropriate screen based on role
+        if (response.data?.session) {
+          router.replace('/');
+        }
+      } catch (authServiceError: any) {
+        console.error(
+          'Auth service login failed, trying direct Supabase call:',
+          authServiceError.message
+        );
+
+        // Fallback to direct Supabase API call
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        console.log(
+          'Direct Supabase login successful:',
+          data ? 'Session exists' : 'No session'
+        );
+
+        // Navigate to appropriate screen
+        if (data?.session) {
+          router.replace('/');
+        }
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
+      setError(error.message || 'Invalid email or password');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // Add debug mode controls at the bottom of the form
+  const renderDebugControls = () => {
+    if (!__DEV__) return null; // Only show in development
+
+    return (
+      <View style={styles.debugContainer}>
+        <View style={styles.debugRow}>
+          <Text style={styles.debugText}>Debug Mode</Text>
+          <Switch
+            value={debugMode}
+            onValueChange={setDebugMode}
+            trackColor={{ false: '#64748b', true: '#15803d' }}
+            thumbColor={debugMode ? '#22c55e' : '#e2e8f0'}
+          />
+        </View>
+
+        {debugMode && (
+          <Pressable
+            style={styles.debugButton}
+            onPress={runDebugChecks}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#ffffff" size="small" />
+            ) : (
+              <Text style={styles.debugButtonText}>Run Debug Checks</Text>
+            )}
+          </Pressable>
+        )}
+      </View>
+    );
+  };
+
+  // Determine if we need a form element based on platform
+  // We'll use a real form element for web, but not for native
+  const FormContainer = Platform.OS === 'web' ? 'form' : View;
 
   return (
     <View style={styles.container}>
       <Image
-        source={{ uri: 'https://images.unsplash.com/photo-1558449028-b53a39d100fc?q=80&w=1920' }}
+        source={{
+          uri: 'https://images.unsplash.com/photo-1558449028-b53a39d100fc?q=80&w=1920',
+        }}
         style={styles.backgroundImage}
       />
       <View style={styles.overlay} />
@@ -31,10 +166,22 @@ export default function Login() {
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.logo}>GreenCare</Text>
-          <Text style={styles.subtitle}>Welcome back! Please sign in to continue.</Text>
+          <Text style={styles.subtitle}>
+            Welcome back! Please sign in to continue.
+          </Text>
         </View>
 
-        <View style={styles.form}>
+        <FormContainer
+          style={styles.form}
+          onSubmit={
+            Platform.OS === 'web'
+              ? (e) => {
+                  e.preventDefault();
+                  handleLogin();
+                }
+              : undefined
+          }
+        >
           {error ? (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
@@ -52,6 +199,13 @@ export default function Login() {
                 autoCapitalize="none"
                 value={email}
                 onChangeText={setEmail}
+                textContentType="emailAddress"
+                {...(Platform.OS === 'web'
+                  ? {
+                      name: 'email',
+                      autoComplete: 'email',
+                    }
+                  : {})}
               />
             </View>
 
@@ -64,29 +218,48 @@ export default function Login() {
                 secureTextEntry
                 value={password}
                 onChangeText={setPassword}
+                textContentType="password"
+                {...(Platform.OS === 'web'
+                  ? {
+                      name: 'password',
+                      autoComplete: 'current-password',
+                    }
+                  : {})}
               />
             </View>
           </View>
 
-          <Pressable 
+          <Pressable
             style={({ pressed }) => [
               styles.loginButton,
-              pressed && styles.loginButtonPressed
+              pressed && styles.loginButtonPressed,
             ]}
             onPress={handleLogin}
+            disabled={loading}
+            // Use type="submit" for web form
+            {...(Platform.OS === 'web' ? { type: 'submit' } : {})}
           >
-            <Text style={styles.loginButtonText}>Sign In</Text>
-            <ArrowRight size={20} color="#ffffff" />
+            {loading ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <>
+                <Text style={styles.loginButtonText}>Sign In</Text>
+                <ArrowRight size={20} color="#ffffff" />
+              </>
+            )}
           </Pressable>
 
           <Link href="/register" asChild>
             <Pressable style={styles.registerLink}>
               <Text style={styles.registerText}>
-                Don't have an account? <Text style={styles.registerTextBold}>Sign up</Text>
+                Don't have an account?{' '}
+                <Text style={styles.registerTextBold}>Sign up</Text>
               </Text>
             </Pressable>
           </Link>
-        </View>
+
+          {renderDebugControls()}
+        </FormContainer>
       </View>
     </View>
   );
@@ -196,5 +369,34 @@ const styles = StyleSheet.create({
   registerTextBold: {
     color: '#ffffff',
     fontWeight: '600',
+  },
+  debugContainer: {
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  debugRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  debugText: {
+    color: '#94a3b8',
+    fontSize: 14,
+  },
+  debugButton: {
+    backgroundColor: '#334155',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  debugButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

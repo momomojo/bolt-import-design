@@ -1,66 +1,61 @@
 import React from 'react';
-import { Button as NBButton, IButtonProps, Text } from 'native-base';
-import { TouchableOpacity } from 'react-native';
+import { Button as NBButton, IButtonProps } from 'native-base';
 
-export type ButtonVariant =
-  | 'primary'
-  | 'secondary'
-  | 'outline'
-  | 'danger'
-  | 'success'
-  | 'link';
+export type ButtonProps = IButtonProps;
 
-export type ButtonProps = Omit<IButtonProps, 'variant'> & {
-  title: string;
-  onPress: () => void;
-  variant?: ButtonVariant;
-  size?: 'xs' | 'sm' | 'md' | 'lg';
-  isLoading?: boolean;
-  isFullWidth?: boolean;
-  leftIcon?: React.ReactNode;
-  rightIcon?: React.ReactNode;
+/**
+ * Primary button component that extends NativeBase Button
+ * with consistent styling across the app
+ */
+export const Button = (props: ButtonProps) => {
+  return <NBButton {...props} />;
 };
 
-// Map our variant names to NativeBase variants
-const variantMap: Record<
-  ButtonVariant,
-  { colorScheme?: string; variant: string }
-> = {
-  primary: { colorScheme: 'primary', variant: 'solid' },
-  secondary: { colorScheme: 'secondary', variant: 'solid' },
-  outline: { colorScheme: 'primary', variant: 'outline' },
-  danger: { colorScheme: 'error', variant: 'solid' },
-  success: { colorScheme: 'success', variant: 'solid' },
-  link: { variant: 'link' },
-};
+/**
+ * Primary button with default styling
+ */
+export const PrimaryButton = (props: ButtonProps) => (
+  <Button colorScheme="primary" {...props} />
+);
 
-export const Button: React.FC<ButtonProps> = ({
-  title,
-  onPress,
-  variant = 'primary',
-  size = 'md',
-  isLoading = false,
-  isFullWidth = false,
-  leftIcon,
-  rightIcon,
-  ...props
-}) => {
-  // Get the appropriate NativeBase variant props
-  const variantProps = variantMap[variant];
+/**
+ * Secondary button with outline styling
+ */
+export const SecondaryButton = (props: ButtonProps) => (
+  <Button variant="outline" colorScheme="primary" {...props} />
+);
 
-  return (
-    <NBButton
-      onPress={onPress}
-      size={size}
-      isLoading={isLoading}
-      width={isFullWidth ? 'full' : undefined}
-      leftIcon={leftIcon}
-      rightIcon={rightIcon}
-      colorScheme={variantProps.colorScheme}
-      variant={variantProps.variant}
-      {...props}
-    >
-      {title}
-    </NBButton>
-  );
-};
+/**
+ * Ghost button with transparent background
+ */
+export const GhostButton = (props: ButtonProps) => (
+  <Button variant="ghost" colorScheme="primary" {...props} />
+);
+
+/**
+ * Link button that looks like a text link
+ */
+export const LinkButton = (props: ButtonProps) => (
+  <Button variant="link" colorScheme="primary" {...props} />
+);
+
+/**
+ * Danger button for destructive actions
+ */
+export const DangerButton = (props: ButtonProps) => (
+  <Button colorScheme="error" {...props} />
+);
+
+/**
+ * Success button for confirmations
+ */
+export const SuccessButton = (props: ButtonProps) => (
+  <Button colorScheme="success" {...props} />
+);
+
+/**
+ * Warning button for cautionary actions
+ */
+export const WarningButton = (props: ButtonProps) => (
+  <Button colorScheme="warning" {...props} />
+);

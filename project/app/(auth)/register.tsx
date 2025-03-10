@@ -1,9 +1,24 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, Image, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  Pressable,
+  Image,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+  Switch,
+} from 'react-native';
 import { Link, router } from 'expo-router';
 import { Mail, Lock, User, ArrowRight, Building2 } from 'lucide-react-native';
+import authService from '../../src/api/auth';
+import { supabase } from '../../src/api/supabase';
+import { useAuthDebug } from '../../src/hooks/auth/useAuthDebug';
 
 export default function Register() {
+  const authDebug = useAuthDebug();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -12,12 +27,42 @@ export default function Register() {
     role: '',
   });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [debugMode, setDebugMode] = useState(__DEV__); // Enable in development by default
 
-  const handleRegister = () => {
+  // Debug functions
+  const runDebugChecks = async () => {
+    setLoading(true);
+    try {
+      console.log('Running debug checks...');
+
+      // Check for existing session
+      await authDebug.checkSession();
+
+      // Test database permissions
+      await authDebug.testDatabasePermissions();
+
+      console.log('Debug checks completed');
+      Alert.alert(
+        'Debug Checks',
+        'Debug checks completed. Check console logs for details.'
+      );
+    } catch (error: any) {
+      console.error('Debug checks error:', error);
+      Alert.alert(
+        'Debug Error',
+        error.message || 'An error occurred during debugging'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async () => {
     setError('');
-    
+
     // Basic validation
-    if (Object.values(formData).some(value => !value)) {
+    if (Object.values(formData).some((value) => !value)) {
       setError('Please fill in all fields');
       return;
     }
@@ -27,19 +72,137 @@ export default function Register() {
       return;
     }
 
-    // TODO: Implement actual registration logic
-    console.log('Register:', formData);
+    setLoading(true);
+    try {
+      console.log('Starting registration with:', {
+        email: formData.email,
+        name: formData.name,
+        role: formData.role,
+        password: '********', // Don't log actual password
+      });
+
+      // Try using our auth service first
+      try {
+        let response;
+        if (formData.role === 'provider') {
+          response = await authService.signUpProvider(
+            formData.email,
+            formData.password,
+            formData.name
+          );
+        } else {
+          response = await authService.signUpCustomer(
+            formData.email,
+            formData.password,
+            formData.name
+          );
+        }
+
+        if (response.error) {
+          throw response.error;
+        }
+
+        console.log(
+          'Registration with auth service successful:',
+          response.data ? 'Data exists' : 'No data'
+        );
+      } catch (authServiceError: any) {
+        console.error(
+          'Auth service registration failed, trying direct Supabase call:',
+          authServiceError.message
+        );
+
+        // Fallback to direct Supabase API call
+        const { data, error } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              full_name: formData.name,
+              user_role: formData.role || 'customer',
+            },
+          },
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        console.log(
+          'Direct Supabase registration successful:',
+          data ? 'Data exists' : 'No data'
+        );
+      }
+
+      // Show success message
+      Alert.alert(
+        'Registration Successful',
+        'Your account has been created successfully',
+        [{ text: 'OK', onPress: () => router.push('/login') }]
+      );
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      setError(error.message || 'Failed to register. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const roles = [
-    { id: 'customer', label: 'Customer', description: 'Book and manage lawn care services' },
-    { id: 'provider', label: 'Service Provider', description: 'Offer professional lawn care services' },
+    {
+      id: 'customer',
+      label: 'Customer',
+      description: 'Book and manage lawn care services',
+    },
+    {
+      id: 'provider',
+      label: 'Service Provider',
+      description: 'Offer professional lawn care services',
+    },
   ];
 
+  // Add debug mode controls at the bottom of the form
+  const renderDebugControls = () => {
+    if (!__DEV__) return null; // Only show in development
+
+    return (
+      <View style={styles.debugContainer}>
+        <View style={styles.debugRow}>
+          <Text style={styles.debugText}>Debug Mode</Text>
+          <Switch
+            value={debugMode}
+            onValueChange={setDebugMode}
+            trackColor={{ false: '#64748b', true: '#15803d' }}
+            thumbColor={debugMode ? '#22c55e' : '#e2e8f0'}
+          />
+        </View>
+
+        {debugMode && (
+          <Pressable
+            style={styles.debugButton}
+            onPress={runDebugChecks}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#ffffff" size="small" />
+            ) : (
+              <Text style={styles.debugButtonText}>Run Debug Checks</Text>
+            )}
+          </Pressable>
+        )}
+      </View>
+    );
+  };
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+    >
       <Image
-        source={{ uri: 'https://images.unsplash.com/photo-1589923158776-cb4485d99fd6?q=80&w=1920' }}
+        source={{
+          uri: 'https://images.unsplash.com/photo-1589923158776-cb4485d99fd6?q=80&w=1920',
+        }}
         style={styles.backgroundImage}
       />
       <View style={styles.overlay} />
@@ -65,7 +228,10 @@ export default function Register() {
                 placeholder="Full name"
                 placeholderTextColor="#64748b"
                 value={formData.name}
-                onChangeText={(text) => setFormData({ ...formData, name: text })}
+                onChangeText={(text) =>
+                  setFormData({ ...formData, name: text })
+                }
+                textContentType="name"
               />
             </View>
 
@@ -78,7 +244,10 @@ export default function Register() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={formData.email}
-                onChangeText={(text) => setFormData({ ...formData, email: text })}
+                onChangeText={(text) =>
+                  setFormData({ ...formData, email: text })
+                }
+                textContentType="emailAddress"
               />
             </View>
 
@@ -90,7 +259,10 @@ export default function Register() {
                 placeholderTextColor="#64748b"
                 secureTextEntry
                 value={formData.password}
-                onChangeText={(text) => setFormData({ ...formData, password: text })}
+                onChangeText={(text) =>
+                  setFormData({ ...formData, password: text })
+                }
+                textContentType="newPassword"
               />
             </View>
 
@@ -102,7 +274,10 @@ export default function Register() {
                 placeholderTextColor="#64748b"
                 secureTextEntry
                 value={formData.confirmPassword}
-                onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
+                onChangeText={(text) =>
+                  setFormData({ ...formData, confirmPassword: text })
+                }
+                textContentType="newPassword"
               />
             </View>
           </View>
@@ -122,10 +297,12 @@ export default function Register() {
                   size={24}
                   color={formData.role === role.id ? '#16a34a' : '#64748b'}
                 />
-                <Text style={[
-                  styles.roleTitle,
-                  formData.role === role.id && styles.roleTextSelected
-                ]}>
+                <Text
+                  style={[
+                    styles.roleTitle,
+                    formData.role === role.id && styles.roleTextSelected,
+                  ]}
+                >
                   {role.label}
                 </Text>
                 <Text style={styles.roleDescription}>{role.description}</Text>
@@ -133,26 +310,36 @@ export default function Register() {
             ))}
           </View>
 
-          <Pressable 
+          <Pressable
             style={({ pressed }) => [
               styles.registerButton,
-              pressed && styles.registerButtonPressed
+              pressed && styles.registerButtonPressed,
             ]}
             onPress={handleRegister}
+            disabled={loading}
           >
-            <Text style={styles.registerButtonText}>Create Account</Text>
-            <ArrowRight size={20} color="#ffffff" />
+            {loading ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <>
+                <Text style={styles.registerButtonText}>Create Account</Text>
+                <ArrowRight size={20} color="#ffffff" />
+              </>
+            )}
           </Pressable>
 
           <Link href="/login" asChild>
             <Pressable style={styles.loginLink}>
               <Text style={styles.loginText}>
-                Already have an account? <Text style={styles.loginTextBold}>Sign in</Text>
+                Already have an account?{' '}
+                <Text style={styles.loginTextBold}>Sign in</Text>
               </Text>
             </Pressable>
           </Link>
         </View>
       </View>
+
+      {renderDebugControls()}
     </ScrollView>
   );
 }
@@ -298,5 +485,34 @@ const styles = StyleSheet.create({
   loginTextBold: {
     color: '#ffffff',
     fontWeight: '600',
+  },
+  debugContainer: {
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  debugRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  debugText: {
+    color: '#94a3b8',
+    fontSize: 14,
+  },
+  debugButton: {
+    backgroundColor: '#334155',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  debugButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
